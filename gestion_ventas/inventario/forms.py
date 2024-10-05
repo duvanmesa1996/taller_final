@@ -1,26 +1,17 @@
 from django import forms
-from .models import Producto, Categoria, Proveedor, DetalleProducto, Cliente, Ventas
-
+from .models import Producto, Categoria, Proveedor, DetalleProducto, Cliente
+from .models import Ventas
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['nombre', 'categoria', 'proveedor', 'etiquetas', 'cantidad', 'precio', 'descripcion']
-        widgets = {
-            'etiquetas': forms.CheckboxSelectMultiple(),
-        }
+        fields = ['nombre', 'categoria', 'proveedor', 'cantidad', 'precio', 'descripcion']
+       
 
     def clean_precio(self):
         precio = self.cleaned_data.get('precio')
         if precio < 0:
             raise forms.ValidationError('El precio no puede ser negativo.')
         return precio
-
-    def clean_etiquetas(self):
-        etiquetas = self.cleaned_data.get('etiquetas')
-        if etiquetas.count() > 5:
-            raise forms.ValidationError("Un producto no puede tener mas de 5 etiquetas.")
-        return etiquetas
-
 class CategoriaForm(forms.ModelForm):
     class Meta:
         model = Categoria
@@ -48,7 +39,7 @@ class ProveedorForm(forms.ModelForm):
 class DetalleProductoForm(forms.ModelForm):
     class Meta:
         model = DetalleProducto
-        fields = ['especificaciones', 'fecha_vencimiento']
+        fields = ['especificaciones']
 
 
 class ClienteForm(forms.ModelForm):
@@ -58,6 +49,7 @@ class ClienteForm(forms.ModelForm):
 
 
 class VentasForm(forms.ModelForm):
+   
     class Meta:
         model = Ventas
         fields = ['producto', 'cliente', 'cantidad']

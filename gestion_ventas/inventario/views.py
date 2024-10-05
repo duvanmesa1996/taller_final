@@ -1,41 +1,29 @@
+from django.views.decorators.http import require_POST
 import csv
-import openpyxl
-from reportlab.pdfgen import canvas
 import io
 from io import BytesIO
 import tempfile
-from reportlab.lib.pagesizes import letter
-import matplotlib.pyplot as plt
 from django.db.models import Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.dateparse import parse_date
 from django.http import HttpResponse
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.decorators import permission_required
-from allauth.account.signals import user_signed_up
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
 from .models import Producto, Categoria, Proveedor, DetalleProducto, Ventas, Cliente
 from .forms import ProductoForm, CategoriaForm, ProveedorForm, DetalleProductoForm, ClienteForm, VentasForm
 
+
 # Create your views here.
+@require_POST
+def eliminar_ventas(request):
+    venta_ids = request.POST.getlist('venta_ids')
+    if venta_ids:
+        Ventas.objects.filter(id__in=venta_ids).delete()
+    return redirect('lista_ventas') 
 
 def inicio(request):
-    return render(request, 'inventario/inicio.html')
+    return render(request, 'inicio.html')
 
-def register(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('login')
-        else:
-            return render(request, 'inventario/register.html', {'form': form})
-    else:
-        form = UserCreationForm()
-    return render(request, 'inventario/register.html', {'form': form})
-
-@receiver(user_signed_up)
 def assign_user_group(sender, request, user, **kwargs):
     group = Group.object.get(name='Usuarios Regulares')
     user.groups.add(group)
@@ -44,40 +32,26 @@ def my_view(request):
     if not request.user.has_perm('inventario.view_producto'):
         return redirect('no-access')
 
-@permission_required('inventario.view_producto', raise_exception=True)
 def listar_productos(request):
     productos = Producto.objects.prefetch_related('detalleproducto').all()
-    return render(request, 'inventario/listar_productos.html', {'productos': productos})
+    return render(request, 'listar_productos.html', {'productos': productos})
 
 def agregar_producto(request):
     if request.method == 'POST':
         producto_form = ProductoForm(request.POST)
-        detalle_form = DetalleProductoForm(request.POST)
-        if producto_form.is_valid() and detalle_form.is_valid():
-            producto = producto_form.save(commit=False)
-            producto.save()
-            producto_form.save_m2m()
-
-            detalle = detalle_form.save(commit=False)
-            detalle.producto = producto
-            detalle.save
-
+        if producto_form.is_valid():
+            producto_form.save()
             return redirect('listar_productos')
-
     else:
         producto_form = ProductoForm()
-        detalle_form = DetalleProductoForm()
 
-    return render(request, 'inventario/agregar_producto.html', {
-         'producto_form': producto_form,
-         'detalle_form': detalle_form
-     })
+    return render(request, 'agregar_producto.html', {'producto_form': producto_form})
 
 from django.shortcuts import get_object_or_404
 
 def detalle_producto(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
-    return render(request, 'inventario/detalle_producto.html', {'producto': producto})
+    return render(request, 'detalle_producto.html', {'producto': producto})
 
 
 def editar_producto(request, pk):
@@ -93,7 +67,7 @@ def editar_producto(request, pk):
         if producto_form.is_valid() and detalle_form.is_valid():
             producto = producto_form.save(commit=False)
             producto_form.save()
-            producto_form.save_m2m() # guardar relaciones muchos a muchos.
+            producto_form.save_m2m()
             detalle = detalle_form.save(commit=False)
             detalle.producto = producto
             detalle.save()
@@ -101,7 +75,7 @@ def editar_producto(request, pk):
     else:
         producto_form = ProductoForm(instance=producto)
         detalle_form = DetalleProductoForm(instance=detalle)
-    return render(request, 'inventario/editar_producto.html', {
+    return render(request, 'editar_producto.html', {
         'producto_form': producto_form,
         'detalle_form': detalle_form
     })
@@ -111,12 +85,12 @@ def eliminar_producto(request, pk):
     if request.method == 'POST':
         producto.delete()
         return redirect('listar_productos')
-    return render(request, 'inventario/eliminar_producto.html', {'producto': producto})
+    return render(request, 'eliminar_producto.html', {'producto': producto})
 
-# Vistas para Categoria
+
 def listar_categorias(request):
     categorias = Categoria.objects.all()
-    return render(request, 'inventario/listar_categorias.html', {'categorias': categorias})
+    return render(request, 'listar_categorias.html', {'categorias': categorias})
 
 def agregar_categoria(request):
     if request.method == 'POST':
@@ -126,7 +100,7 @@ def agregar_categoria(request):
             return redirect('listar_categorias')
     else:
         form = CategoriaForm()
-    return render(request, 'inventario/agregar_categoria.html', {'form': form})
+    return render(request, 'agregar_categoria.html', {'form': form})
 
 def editar_categoria(request, pk):
     categoria = get_object_or_404(Categoria, pk=pk)
@@ -137,19 +111,19 @@ def editar_categoria(request, pk):
             return redirect('listar_categorias')
     else:
         form = CategoriaForm(instance=categoria)
-    return render(request, 'inventario/editar_categoria.html', {'form': form})
+    return render(request, 'editar_categoria.html', {'form': form})
 
 def eliminar_categoria(request, pk):
     categoria = get_object_or_404(Categoria, pk=pk)
     if request.method == 'POST':
         categoria.delete()
         return redirect('listar_categorias')
-    return render(request, 'inventario/eliminar_categoria.html', {'categoria': categoria})
+    return render(request, 'eliminar_categoria.html', {'categoria': categoria})
 
-# Vistas para Proveedor
+
 def listar_proveedores(request):
     proveedores = Proveedor.objects.all()
-    return render(request, 'inventario/listar_proveedores.html', {'proveedores': proveedores})
+    return render(request, 'listar_proveedores.html', {'proveedores': proveedores})
 
 def agregar_proveedor(request):
     if request.method == 'POST':
@@ -159,7 +133,7 @@ def agregar_proveedor(request):
             return redirect('listar_proveedores')
     else:
         form = ProveedorForm()
-    return render(request, 'inventario/agregar_proveedor.html', {'form': form})
+    return render(request, 'agregar_proveedor.html', {'form': form})
 
 def editar_proveedor(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
@@ -170,19 +144,18 @@ def editar_proveedor(request, pk):
             return redirect('listar_proveedores')
     else:
         form = ProveedorForm(instance=proveedor)
-    return render(request, 'inventario/editar_proveedor.html', {'form': form})
+    return render(request, 'editar_proveedor.html', {'form': form})
 
 def eliminar_proveedor(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     if request.method == 'POST':
         proveedor.delete()
         return redirect('listar_proveedores')
-    return render(request, 'inventario/eliminar_proveedor.html', {'proveedor': proveedor})
+    return render(request, 'eliminar_proveedor.html', {'proveedor': proveedor})
 
-#vistas para ventas e informes
 def listar_ventas(request):
     ventas = Ventas.objects.all().select_related('producto', 'cliente')
-    return render(request, 'inventario/listar_ventas.html', {'ventas': ventas})
+    return render(request, 'listar_ventas.html', {'ventas': ventas})
 
 def registrar_venta(request):
     if request.method == 'POST':
@@ -191,23 +164,19 @@ def registrar_venta(request):
             venta = form.save(commit=False)
             producto = venta.producto
 
-            # Verificar si hay suficiente stock (cantidad) antes de registrar la venta
+            
             if producto.cantidad >= venta.cantidad:
-                # Calcular el total de la venta
                 venta.total = producto.precio * venta.cantidad
-
-                # Reducir la cantidad (stock) del producto
                 producto.cantidad -= venta.cantidad
                 producto.save()
-
-                venta.save()  # Guardar la venta con el total calculado
+                venta.save()  
                 return redirect('listar_ventas')
             else:
                 form.add_error('cantidad', 'No hay suficiente stock para realizar esta venta.')
     else:
         form = VentasForm()
 
-    return render(request, 'inventario/registrar_venta.html', {'form': form})
+    return render(request, 'registrar_ventas.html', {'form': form})
 
 def reporte_ventas(request):
     ventas = Ventas.objects.all()
@@ -225,12 +194,10 @@ def reporte_ventas(request):
     if producto_id:
         ventas = ventas.filter(producto_id=producto_id)
 
-    return render(request, 'inventario/reporte_ventas.html', {'ventas': ventas})
+    return render(request, 'reporte_ventas.html', {'ventas': ventas})
 
 def exportar_reporte_ventas_csv(request):
     ventas = Ventas.objects.all()
-
-    # Filtros por fecha, cliente y producto
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     cliente_id = request.GET.get('cliente_id')
@@ -256,11 +223,9 @@ def exportar_reporte_ventas_csv(request):
 
     return response
 
-#vistas para cliente
-
 def listar_clientes(request):
     clientes = Cliente.objects.all()
-    return render(request, 'inventario/listar_clientes.html', {'clientes': clientes})
+    return render(request, 'listar_clientes.html', {'clientes': clientes})
 
 def agregar_cliente(request):
     if request.method == 'POST':
@@ -270,7 +235,7 @@ def agregar_cliente(request):
             return redirect('listar_clientes')
     else:
         form = ClienteForm()
-    return render(request, 'inventario/agregar_cliente.html', {'form': form})
+    return render(request, 'agregar_cliente.html', {'form': form})
 
 def editar_cliente(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk)
@@ -281,45 +246,27 @@ def editar_cliente(request, pk):
             return redirect('listar_clientes')
     else:
         form = ClienteForm(instance=cliente)
-    return render(request, 'inventario/editar_cliente.html', {'form': form})
+    return render(request, 'editar_cliente.html', {'form': form})
 
 def eliminar_cliente(request, pk):
     cliente = get_object_or_404(Cliente, pk=pk)
     if request.method == 'POST':
         cliente.delete()
         return redirect('listar_clientes')
-    return render(request, 'inventario/eliminar_cliente.html', {'cliente': cliente})
+    return render(request, 'eliminar_cliente.html', {'cliente': cliente})
 
 
 def exportar_reporte_ventas_excel(request):
-    # Crea un nuevo archivo de Excel
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = 'Reporte de Ventas'
-
-    # Añade encabezados a las columnas
+    ws.title = 'Reporte de Ventas'    
     ws.append(['Fecha', 'Producto', 'Cliente', 'Cantidad', 'Total'])
-
-    # Recupera todas las ventas
     ventas = Ventas.objects.all().select_related('producto', 'cliente')
 
-    # Añade los datos de las ventas
-    for venta in ventas:
-        # Asegúrate de que la fecha esté en formato sin zona horaria
+    for venta in ventas:   
         fecha_venta = venta.fecha_venta.replace(tzinfo=None) if venta.fecha_venta else None
         ws.append([fecha_venta, venta.producto.nombre, venta.cliente.nombre, venta.cantidad, venta.total])
 
-    # Configura la respuesta para descargar el archivo Excel
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=Reporte_Ventas.xlsx'
-
-    # Usa un buffer en memoria para evitar problemas con `wb.save(response)`
-    from io import BytesIO
-    buffer = BytesIO()
-    wb.save(buffer)
-    response.write(buffer.getvalue())
-
-    return response
 
 def exportar_reporte_ventas_pdf(request):
     response = HttpResponse(content_type='application/pdf')
