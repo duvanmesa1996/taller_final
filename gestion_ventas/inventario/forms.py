@@ -36,12 +36,6 @@ class ProveedorForm(forms.ModelForm):
             raise forms.ValidationError('el numero de telefono debe contener solo digitos.')
         return telefono
 
-class DetalleProductoForm(forms.ModelForm):
-    class Meta:
-        model = DetalleProducto
-        fields = ['especificaciones']
-
-
 class ClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente

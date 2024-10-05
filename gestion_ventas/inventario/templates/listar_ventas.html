@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -18,7 +18,7 @@
           <th>Cliente</th>
           <th>Cantidad</th>
           <th>Total</th>
-          <th>Fecha de venta</th>
+          <th>Acciones</th> 
         </tr>
       </thead>
       <tbody>
@@ -31,11 +31,15 @@
           <td>{{ venta.cliente.nombre }}</td>
           <td>{{ venta.cantidad }}</td>
           <td>{{ venta.total }}</td>
-          <td>{{ venta.fecha }}</td>
+          <td>
+            <a href="{% url 'editar_venta' venta.id %}">
+              <button type="button">Editar</button>
+            </a>
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6">No se encontraron ventas.</td>
+          <td colspan="7">No se encontraron ventas.</td>
         </tr>
         {% endfor %}
       </tbody>

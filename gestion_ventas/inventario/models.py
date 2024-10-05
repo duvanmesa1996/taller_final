@@ -20,12 +20,6 @@ class Proveedor(models.Model):
     def __str__(self):
         return str(self.nombre)
 
-class Etiqueta(models.Model):
-    nombre = models.CharField(max_length=50)
-
-    def __str__(self):
-        return str(self.nombre)
-
 class Producto(models.Model):
     nombre = models.CharField(max_length=100)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE)
@@ -40,7 +34,6 @@ class Producto(models.Model):
 
 class DetalleProducto(models.Model):
     producto = models.OneToOneField(Producto, on_delete=models.CASCADE)
-    especificaciones = models.TextField()
     fecha_vencimiento = models.DateField(null=True, blank=True)
 
     def __str__(self):

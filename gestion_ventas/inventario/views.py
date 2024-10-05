@@ -10,7 +10,8 @@ from django.http import HttpResponse
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
 from .models import Producto, Categoria, Proveedor, DetalleProducto, Ventas, Cliente
-from .forms import ProductoForm, CategoriaForm, ProveedorForm, DetalleProductoForm, ClienteForm, VentasForm
+from .forms import ProductoForm, CategoriaForm, ProveedorForm, ClienteForm, VentasForm
+#DetalleProductoForm
 
 
 # Create your views here.
@@ -63,21 +64,18 @@ def editar_producto(request, pk):
 
     if request.method == 'POST':
         producto_form = ProductoForm(request.POST, instance=producto)
-        detalle_form = DetalleProductoForm(request.POST, instance=detalle)
-        if producto_form.is_valid() and detalle_form.is_valid():
+        
+        if producto_form.is_valid(): 
             producto = producto_form.save(commit=False)
             producto_form.save()
-            producto_form.save_m2m()
-            detalle = detalle_form.save(commit=False)
-            detalle.producto = producto
-            detalle.save()
+            producto_form.save_m2m()           
             return redirect('listar_productos')
     else:
         producto_form = ProductoForm(instance=producto)
-        detalle_form = DetalleProductoForm(instance=detalle)
+     
     return render(request, 'editar_producto.html', {
         'producto_form': producto_form,
-        'detalle_form': detalle_form
+        
     })
 
 def eliminar_producto(request, pk):
@@ -178,50 +176,19 @@ def registrar_venta(request):
 
     return render(request, 'registrar_ventas.html', {'form': form})
 
-def reporte_ventas(request):
-    ventas = Ventas.objects.all()
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    cliente_id = request.GET.get('cliente_id')
-    producto_id = request.GET.get('producto_id')
+def editar_venta(request, id):
+    venta = get_object_or_404(Ventas, id=id)
+    
+    if request.method == 'POST':
+        form = VentasForm(request.POST, instance=venta)
+        if form.is_valid():
+            form.save()
+            return redirect('listar_ventas') 
+    else:
+        form = VentasForm(instance=venta)
+    
+    return render(request, 'editar_ventas.html', {'form': form, 'venta': venta})
 
-    if fecha_inicio and fecha_fin:
-        ventas = ventas.filter(fecha_venta__range=[parse_date(fecha_inicio), parse_date(fecha_fin)])
-
-    if cliente_id:
-        ventas = ventas.filter(cliente_id=cliente_id)
-
-    if producto_id:
-        ventas = ventas.filter(producto_id=producto_id)
-
-    return render(request, 'reporte_ventas.html', {'ventas': ventas})
-
-def exportar_reporte_ventas_csv(request):
-    ventas = Ventas.objects.all()
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    cliente_id = request.GET.get('cliente_id')
-    producto_id = request.GET.get('producto_id')
-
-    if fecha_inicio and fecha_fin:
-        ventas = ventas.filter(fecha_venta__range=[parse_date(fecha_inicio), parse_date(fecha_fin)])
-
-    if cliente_id:
-        ventas = ventas.filter(cliente_id=cliente_id)
-
-    if producto_id:
-        ventas = ventas.filter(producto_id=producto_id)
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="reporte_ventas.csv"'
-
-    writer = csv.writer(response)
-    writer.writerow(['Fecha de Venta', 'Producto', 'Cliente', 'Cantidad', 'Total'])
-
-    for venta in ventas:
-        writer.writerow([venta.fecha_venta, venta.producto.nombre, venta.cliente.nombre, venta.cantidad, venta.total])
-
-    return response
 
 def listar_clientes(request):
     clientes = Cliente.objects.all()
@@ -255,79 +222,3 @@ def eliminar_cliente(request, pk):
         return redirect('listar_clientes')
     return render(request, 'eliminar_cliente.html', {'cliente': cliente})
 
-
-def exportar_reporte_ventas_excel(request):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'Reporte de Ventas'    
-    ws.append(['Fecha', 'Producto', 'Cliente', 'Cantidad', 'Total'])
-    ventas = Ventas.objects.all().select_related('producto', 'cliente')
-
-    for venta in ventas:   
-        fecha_venta = venta.fecha_venta.replace(tzinfo=None) if venta.fecha_venta else None
-        ws.append([fecha_venta, venta.producto.nombre, venta.cliente.nombre, venta.cantidad, venta.total])
-
-
-def exportar_reporte_ventas_pdf(request):
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename=Reporte_Ventas.pdf'
-
-    # Crea el objeto canvas
-    c = canvas.Canvas(response, pagesize=letter)
-    width, height = letter
-
-    # Añade el título y los encabezados de las columnas
-    c.drawString(100, height - 100, 'Reporte de Ventas')
-    c.drawString(50, height - 130, 'Fecha')
-    c.drawString(150, height - 130, 'Producto')
-    c.drawString(300, height - 130, 'Cliente')
-    c.drawString(450, height - 130, 'Cantidad')
-    c.drawString(500, height - 130, 'Total')
-
-    # Recupera todas las ventas
-    ventas = Ventas.objects.all().select_related('producto', 'cliente')
-    y = height - 160
-
-    for venta in ventas:
-        c.drawString(50, y, str(venta.fecha_venta))
-        c.drawString(150, y, venta.producto.nombre)
-        c.drawString(300, y, venta.cliente.nombre)
-        c.drawString(450, y, str(venta.cantidad))
-        c.drawString(500, y, str(venta.total))
-        y -= 20
-
-    # Genera el gráfico
-    productos = Producto.objects.all()
-    cantidades = []
-    nombres_productos = []
-
-    for producto in productos:
-        total_cantidad = Ventas.objects.filter(producto=producto).aggregate(Sum('cantidad'))['cantidad__sum'] or 0
-        cantidades.append(total_cantidad)
-        nombres_productos.append(producto.nombre)
-
-    # Crea el gráfico y guárdalo en un buffer
-    plt.figure(figsize=(6, 4))
-    plt.bar(nombres_productos, cantidades, color='blue')
-    plt.xlabel('Producto')
-    plt.ylabel('Cantidad Vendida')
-    plt.title('Ventas por Producto')
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
-    plt.close()  # Cierra la figura para liberar memoria
-
-    # Guarda el gráfico en un archivo temporal
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
-        temp_file.write(buf.getvalue())
-        temp_file_path = temp_file.name
-
-    # Añade el gráfico al PDF
-    c.drawImage(temp_file_path, 100, 200, width=400, height=300)
-
-    # Finaliza el PDF
-    c.showPage()
-    c.save()
-
-    return response
